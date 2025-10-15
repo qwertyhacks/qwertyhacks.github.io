@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>My Music Player</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#111827;
+    --muted:#94a3b8;
+    --accent:#60a5fa;
+    --glass: rgba(255,255,255,0.03);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg, #071020 0%, #071727 100%);
+    color:#e6eef8;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .app {
+    width:100%;
+    max-width:1000px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+    border-radius:14px;
+    padding:18px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:16px;
+  }
+
+  header{display:flex;align-items:center;gap:12px}
+  h1{margin:0;font-size:18px}
+  .muted{color:var(--muted); font-size:13px}
+
+  .left {
+    background:var(--card);
+    border-radius:12px;
+    padding:12px;
+    min-height:320px;
+  }
+
+  .upload {
+    border:2px dashed rgba(255,255,255,0.03);
+    padding:12px;
+    border-radius:10px;
+    text-align:center;
+    cursor:pointer;
+    transition:all .15s;
+    background:var(--glass);
+  }
+  .upload.drag{border-color:rgba(96,165,250,0.8); transform:scale(.997)}
+  .upload input{display:none}
+
+  .search {
+    margin-top:12px;
+    display:flex;
+    gap:8px;
+  }
+  .search input{
+    flex:1;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.03);
+    background:transparent;
+    color:inherit;
+  }
+
+  .tracks {
+    margin-top:12px;
+    max-height:48vh;
+    overflow:auto;
+    padding-right:6px;
+  }
+
+  .track {
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:8px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .track:hover{background:rgba(255,255,255,0.012)}
+  .track .title{font-size:14px}
+  .track .sub{font-size:12px;color:var(--muted)}
+
+  .main {
+    background:var(--card);
+    border-radius:12px;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  .player-controls{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .btn{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+
+  .bigplay{
+    font-size:18px;
+    padding:12px 16px;
+  }
+
+  .sliders{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+  }
+
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type=range] {width:100%;}
+  .time {font-size:13px;color:var(--muted)}
+
+  footer{font-size:12px;color:var(--muted); margin-top:6px; text-align:right}
+
+  /* Password overlay */
+  .overlay{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(0deg, rgba(2,6,23,0.85), rgba(2,6,23,0.85));
+    z-index:9999;
+  }
+  .pwcard{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:24px;
+    width:360px;
+    text-align:center;
+    box-shadow:0 10px 40px rgba(2,6,23,0.6);
+  }
+  .pin {
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-top:12px;
+  }
+  .pin input{
+    width:60px;
+    padding:10px;
+    font-size:20px;
+    text-align:center;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.03);
+    background:transparent;
+    color:inherit;
+  }
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr; padding:12px}
+    .left{order:2}
+    .main{order:1}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app" aria-live="polite">
+  <div class="left">
+    <header>
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(180deg,var(--accent),#7dd3fc);display:flex;align-items:center;justify-content:center;font-weight:700">M</div>
+      <div>
+        <h1>My Music</h1>
+        <div class="muted">Upload & play your local files</div>
+      </div>
+    </header>
+
+    <div class="upload" id="dropzone" title="Click to upload or drag audio files here">
+      <div style="font-weight:600">Upload files</div>
+      <div class="muted" style="margin-top:6px;font-size:13px">Drag & drop or click to add MP3 / WAV / OGG</div>
+      <input type="file" id="fileInput" multiple accept="audio/*">
+    </div>
+
+    <div class="search">
+      <input type="search" id="search" placeholder="Search tracks by name">
+      <button class="btn" id="clearSearch">Clear</button>
+    </div>
+
+    <div class="tracks" id="tracks">
+      <div class="muted" style="padding:12px">No tracks yet — upload files to begin.</div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+      <div class="muted">Local playback (files stay in your browser)</div>
+      <div class="muted">Files: <span id="fileCount">0</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;font-size:16px" id="nowTitle">No track selected</div>
+          <div class="muted" id="nowSub">—</div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted">Volume</div>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="player-controls">
+      <button class="btn bigplay" id="playBtn">▶︎</button>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="time" id="currentTime">0:00</div>
+          <input id="seek" type="range" min="0" max="1" step="0.0001" value="0" style="flex:1">
+          <div class="time" id="duration">0:00</div>
+        </div>
+      </div>
+      <div style="width:130px;text-align:right">
+        <div class="muted" style="font-size:12px">Speed <span id="speedVal">1.00x</span></div>
+      </div>
+    </div>
+
+    <div class="sliders">
+      <div>
+        <label>Playback speed (tempo & pitch): <span class="muted" style="font-size:12px">0.5x — 2x</span></label>
+        <input id="speed" type="range" min="0.5" max="2" step="0.01" value="1">
+      </div>
+      <div>
+        <label>Pitch (semitones): <span id="pitchVal">0</span></label>
+        <input id="pitch" type="range" min="-12" max="12" step="1" value="0">
+        <div style="margin-top:8px">
+          <label style="display:inline-flex;align-items:center;gap:8px">
+            <input type="checkbox" id="keepSpeed"> <span class="muted" style="font-size:13px">Keep speed when changing pitch (approx.)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:8px">
+      <div class="muted">Tip: Use the search above to filter filenames. Files never leave your browser.</div>
+      <div>
+        <button class="btn" id="downloadBtn" title="Download track data JSON">Export list</button>
+      </div>
+    </div>
+
+    <footer>Built for GitHub Pages • Client-side only</footer>
+  </div>
+</div>
+
+<!-- Password overlay -->
+<div class="overlay" id="overlay" aria-hidden="false">
+  <div class="pwcard">
+    <h2>Enter 4-digit code</h2>
+    <div class="muted" style="margin-top:6px">This is a client-side prompt (not secure). Code: 4 digits.</div>
+    <div class="pin">
+      <input id="pinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••" />
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:center;gap:8px">
+      <button class="btn" id="pinSubmit">Unlock</button>
+      <button class="btn" id="pinClear">Clear</button>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:12px">Note: this code is stored in the page for convenience. If you want server-side protection, add real authentication.</div>
+  </div>
+</div>
+
+<script>
+/*
+  Simple local music player using WebAudio.
+  Notes:
+   - Uploaded files are decoded into AudioBuffers (in memory). They remain in this browser only.
+   - Password is client-side only. Anyone with the file can read it in source.
+*/
+
+// ----- PASSWORD -----
+const PASSWORD = "3469"; // as requested
+const overlay = document.getElementById('overlay');
+const pinInput = document.getElementById('pinInput');
+const pinSubmit = document.getElementById('pinSubmit');
+const pinClear = document.getElementById('pinClear');
+
+function unlockUI(){
+  overlay.style.display = 'none';
+  overlay.setAttribute('aria-hidden','true');
+  localStorage.setItem('music_unlocked','1');
+}
+
+pinSubmit.onclick = () => {
+  if(pinInput.value.trim() === PASSWORD){
+    unlockUI();
+  } else {
+    pinInput.value = '';
+    pinInput.focus();
+    alert('Incorrect code');
+  }
+};
+pinClear.onclick = () => pinInput.value='';
+
+if(localStorage.getItem('music_unlocked') === '1'){
+  overlay.style.display = 'none';
+  overlay.setAttribute('aria-hidden','true');
+}
+
+// ----- AUDIO ENGINE -----
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+let tracks = []; // {id, name, file, buffer, duration}
+let current = null; // {trackId, source, startAt (context time), offset, playing}
+const gainNode = audioCtx.createGain();
+gainNode.connect(audioCtx.destination);
+
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+const tracksEl = document.getElementById('tracks');
+const fileCount = document.getElementById('fileCount');
+
+const nowTitle = document.getElementById('nowTitle');
+const nowSub = document.getElementById('nowSub');
+
+const playBtn = document.getElementById('playBtn');
+const seek = document.getElementById('seek');
+const currentTime = document.getElementById('currentTime');
+const durationEl = document.getElementById('duration');
+
+const speed = document.getElementById('speed');
+const speedVal = document.getElementById('speedVal');
+
+const pitch = document.getElementById('pitch');
+const pitchVal = document.getElementById('pitchVal');
+const keepSpeed = document.getElementById('keepSpeed');
+
+const volume = document.getElementById('volume');
+
+const downloadBtn = document.getElementById('downloadBtn');
+
+function formatTime(t){
+  if(!isFinite(t)) return '0:00';
+  const s = Math.floor(t%60).toString().padStart(2,'0');
+  const m = Math.floor(t/60);
+  return `${m}:${s}`;
+}
+
+function renderTrackList(filter=''){
+  tracksEl.innerHTML = '';
+  const list = tracks.filter(tr=>tr.name.toLowerCase().includes(filter.toLowerCase()));
+  if(list.length===0){
+    tracksEl.innerHTML = '<div class="muted" style="padding:12px">No tracks to show.</div>';
+    return;
+  }
+  list.forEach(tr=>{
+    const div = document.createElement('div');
+    div.className = 'track';
+    div.dataset.id = tr.id;
+    div.innerHTML = `
+      <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,rgba(96,165,250,0.12),transparent);display:flex;align-items:center;justify-content:center;font-weight:600">${tr.name.slice(0,1).toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="title">${tr.name}</div>
+        <div class="sub">${formatTime(tr.duration)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn small" data-action="play">Play</button>
+        <button class="btn small" data-action="remove">Remove</button>
+      </div>
+    `;
+    tracksEl.appendChild(div);
+  });
+}
+
+function addFiles(files){
+  const arr = Array.from(files);
+  arr.forEach(file=>{
+    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random();
+    const name = file.name;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try{
+        const ab = ev.target.result;
+        const buffer = await audioCtx.decodeAudioData(ab.slice(0));
+        tracks.push({id,name,file,buffer,duration:buffer.duration});
+        fileCount.textContent = tracks.length;
+        renderTrackList(document.getElementById('search').value);
+      }catch(err){
+        console.error('Decode failed',err);
+        alert('Failed to decode ' + name);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// drag & drop
+dropzone.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropzone.classList.add('drag') });
+dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', (e)=>{ e.preventDefault(); dropzone.classList.remove('drag'); addFiles(e.dataTransfer.files) });
+
+fileInput.addEventListener('change', (e)=> addFiles(e.target.files) );
+
+// track actions (delegation)
+tracksEl.addEventListener('click', (e)=>{
+  const tr = e.target.closest('.track');
+  if(!tr) return;
+  const id = tr.dataset.id;
+  const action = e.target.dataset.action;
+  if(action === 'play'){
+    selectTrack(id);
+    playPause();
+  } else if(action === 'remove'){
+    removeTrack(id);
+  } else {
+    selectTrack(id);
+  }
+});
+
+function removeTrack(id){
+  const idx = tracks.findIndex(t=>t.id===id);
+  if(idx>=0){
+    if(current && current.trackId === id){
+      stopCurrent();
+      current = null;
+      nowTitle.textContent = 'No track selected';
+      nowSub.textContent = '—';
+      durationEl.textContent = '0:00';
+      seek.value = 0;
+    }
+    tracks.splice(idx,1);
+    renderTrackList(document.getElementById('search').value);
+    fileCount.textContent = tracks.length;
+  }
+}
+
+function selectTrack(id){
+  const tr = tracks.find(t=>t.id===id);
+  if(!tr) return;
+  if(current && current.trackId === id) return; // already selected
+  stopCurrent();
+  current = {
+    trackId: tr.id,
+    buffer: tr.buffer,
+    offset: 0,
+    source: null,
+    startTime: 0,
+    playing: false
+  };
+  nowTitle.textContent = tr.name;
+  nowSub.textContent = `Duration ${formatTime(tr.duration)}`;
+  durationEl.textContent = formatTime(tr.duration);
+  seek.max = tr.duration;
+  seek.value = 0;
+  updateUI();
+}
+
+function createSourceFromCurrent(){
+  if(!current) return null;
+  const src = audioCtx.createBufferSource();
+  src.buffer = current.buffer;
+  src.connect(gainNode);
+  src.playbackRate.value = parseFloat(speed.value);
+  // detune uses cents: semitones * 100
+  src.detune.value = parseFloat(pitch.value) * 100;
+  return src;
+}
+
+function startAt(offset=0){
+  if(!current) return;
+  // create new source and start
+  current.source = createSourceFromCurrent();
+  if(!current.source) return;
+  current.startTime = audioCtx.currentTime;
+  current.offset = offset;
+  // start: arguments (when, offset, duration) ; let it play full remaining duration
+  const remaining = current.buffer.duration - offset;
+  try {
+    current.source.start(0, offset, remaining);
+  } catch(e){
+    // some browsers require audio context resumed
+    console.warn('start error',e);
+  }
+  current.playing = true;
+  // source ended -> stop playback
+  current.source.onended = () => {
+    // ended naturally
+    // only if not restarted
+    if(current && current.playing){
+      current.playing = false;
+      current.source = null;
+      updateUI();
+    }
+  };
+  updateUI();
+}
+
+function stopCurrent(){
+  if(!current) return;
+  if(current.source){
+    try { current.source.onended = null; current.source.stop(0); } catch(e){}
+    current.source.disconnect && current.source.disconnect();
+    current.source = null;
+  }
+  if(current.playing){
+    // compute offset
+    const played = (audioCtx.currentTime - current.startTime) * (current.source ? current.source.playbackRate.value : parseFloat(speed.value));
+    // careful: if source is null, we can use last known values; but safe fallback:
+    // We'll attempt to compute offset using stored startTime and current speed
+    const newOffset = (audioCtx.currentTime - current.startTime) * parseFloat(speed.value);
+    current.offset = Math.min(current.buffer.duration, current.offset + newOffset);
+  }
+  current.playing = false;
+  updateUI();
+}
+
+function playPause(){
+  if(!current){
+    // auto select first track
+    if(tracks.length>0){
+      selectTrack(tracks[0].id);
+    } else {
+      alert('Upload a track first');
+      return;
+    }
+  }
+  // resume audio context (user gesture)
+  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+
+  if(current.playing){
+    // pause: compute offset
+    // compute played time
+    const played = (audioCtx.currentTime - current.startTime) * parseFloat(speed.value);
+    current.offset = Math.min(current.buffer.duration, current.offset + played);
+    // stop source
+    try{ current.source && current.source.stop(0); } catch(e){}
+    current.source && current.source.disconnect && current.source.disconnect();
+    current.source = null;
+    current.playing = false;
+    updateUI();
+  } else {
+    // start at offset
+    startAt(current.offset || 0);
+  }
+}
+
+// Keep speed when changing pitch checkbox: we'll attempt compensation
+function applyPlaybackParams(){
+  if(!current) return;
+  const baseSpeed = parseFloat(speed.value);
+  const semitones = parseFloat(pitch.value);
+  const pitchMultiplier = Math.pow(2, semitones/12);
+  let playbackRateToSet = baseSpeed;
+  if(keepSpeed.checked){
+    // to keep tempo approximately the same after pitch detune we reduce playbackRate by the pitch multiplier
+    playbackRateToSet = baseSpeed / pitchMultiplier;
+  }
+  // clamp a bit
+  playbackRateToSet = Math.max(0.1, Math.min(8, playbackRateToSet));
+  // If playing: update source
+  if(current && current.source){
+    current.source.playbackRate.value = playbackRateToSet;
+    current.source.detune.value = semitones * 100;
+  }
+  speedVal.textContent = baseSpeed.toFixed(2) + 'x';
+  pitchVal.textContent = semitones;
+}
+
+speed.addEventListener('input', ()=>{
+  applyPlaybackParams();
+});
+
+pitch.addEventListener('input', ()=>{
+  applyPlaybackParams();
+});
+
+keepSpeed.addEventListener('change', ()=> applyPlaybackParams());
+
+volume.addEventListener('input', ()=> {
+  gainNode.gain.value = parseFloat(volume.value);
+});
+
+// seek handling
+let seeking = false;
+seek.addEventListener('input', ()=> {
+  seeking = true;
+  const s = parseFloat(seek.value);
+  currentTime.textContent = formatTime(s);
+});
+seek.addEventListener('change', ()=> {
+  if(!current) return;
+  const s = parseFloat(seek.value);
+  // stop current and start at s (if playing)
+  if(current.source){
+    try{ current.source.onended = null; current.source.stop(0); } catch(e){}
+    current.source && current.source.disconnect && current.source.disconnect();
+    current.source = null;
+  }
+  current.offset = s;
+  if(current.playing){
+    startAt(current.offset);
+  } else {
+    // show updated info
+    updateUI();
+  }
+  seeking = false;
+});
+
+playBtn.addEventListener('click', ()=> playPause());
+
+document.getElementById('search').addEventListener('input', (e)=> renderTrackList(e.target.value));
+document.getElementById('clearSearch').addEventListener('click', ()=>{ document.getElementById('search').value=''; renderTrackList(''); });
+
+// progress updater
+function updateUI(){
+  if(!current){
+    nowTitle.textContent = 'No track selected';
+    nowSub.textContent = '—';
+    currentTime.textContent = '0:00';
+    durationEl.textContent = '0:00';
+    playBtn.textContent = '▶︎';
+    seek.value = 0;
+    return;
+  }
+  const buffer = current.buffer;
+  const dur = buffer.duration;
+  durationEl.textContent = formatTime(dur);
+  if(current.playing && current.startTime){
+    const effectivePlaybackRate = (current.source && current.source.playbackRate) ? current.source.playbackRate.value : parseFloat(speed.value);
+    const elapsed = (audioCtx.currentTime - current.startTime) * effectivePlaybackRate;
+    const pos = Math.min(dur, current.offset + elapsed);
+    if(!seeking) seek.value = pos;
+    currentTime.textContent = formatTime(pos);
+    playBtn.textContent = '❚❚';
+  } else {
+    // paused
+    seek.value = current.offset;
+    currentTime.textContent = formatTime(current.offset);
+    playBtn.textContent = '▶︎';
+  }
+  // reflect playback params on UI
+  speedVal.textContent = parseFloat(speed.value).toFixed(2) + 'x';
+  pitchVal.textContent = parseFloat(pitch.value);
+}
+
+// animation frame
+function raf(){
+  updateUI();
+  requestAnimationFrame(raf);
+}
+raf();
+
+// exporting simple JSON of track names & durations
+downloadBtn.addEventListener('click', ()=>{
+  const payload = tracks.map(t=>({name:t.name,duration:t.duration}));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tracks.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// try to handle page visibility
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden && current && current.playing){
+    // continue playing normally; nothing special
+  }
+});
+
+// initialize some defaults
+gainNode.gain.value = parseFloat(volume.value);
+speedVal.textContent = speed.value + 'x';
+pitchVal.textContent = pitch.value;
+</script>
+</body>
+</html>
