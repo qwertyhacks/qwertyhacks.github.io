@@ -1,7 +1,7 @@
 document.getElementById("submitBtn").addEventListener("click", () => {
     const text = document.getElementById("captchaInput").value.trim().toLowerCase();
 
-    if (text === "banana") { // your secret word
+    if (text === "er7c2") { // your secret word
         const audio = new Audio("trollaudio.mp3");
         audio.play();
 
