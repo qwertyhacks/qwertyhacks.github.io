@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio CAPTCHA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Audio Verification</h1>
+    <p>Turn your volume all the way up and press play to hear the CAPTCHA clearly.</p>
+
+    <audio id="captchaAudio" controls>
+        <source src="captcha-whisper.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="form">
+        <input id="captchaInput" type="text" placeholder="Enter the captcha word">
+        <button id="submitBtn">Verify</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
