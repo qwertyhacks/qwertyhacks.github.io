@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Proxy Client</title>
+<title>Proxy Failover Client</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body {
   margin: 0;
   background: #0d0d0d;
-  color: #e5e5e5;
+  color: #eaeaea;
   font-family: system-ui, sans-serif;
 }
 
@@ -26,14 +26,12 @@ input {
   background: #1a1a1a;
   color: #fff;
   border: 1px solid #333;
-  border-radius: 4px;
 }
 
 button {
   padding: 10px 16px;
   background: #2563eb;
   border: none;
-  border-radius: 4px;
   color: #fff;
   cursor: pointer;
 }
@@ -45,9 +43,10 @@ iframe {
   background: white;
 }
 
-.error {
-  padding: 20px;
-  color: #ff6b6b;
+.status {
+  padding: 8px;
+  font-size: 13px;
+  color: #9ca3af;
 }
 </style>
 </head>
@@ -55,42 +54,72 @@ iframe {
 
 <header>
   <input id="url" placeholder="https://example.com">
-  <button onclick="go()">Go</button>
+  <button onclick="start()">Go</button>
 </header>
 
+<div class="status" id="status">Idle</div>
 <div id="view"></div>
 
 <script>
-const PROXY_BASE = "http://72.10.160.91:2861/";
+let proxies = [];
+let current = 0;
+
+async function loadProxies() {
+  const res = await fetch("all-proxies.txt");
+  const text = await res.text();
+
+  proxies = text
+    .split("\n")
+    .map(p => p.trim())
+    .filter(p => p.startsWith("https://"));
+}
 
 function normalize(url) {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return "https://" + url;
-  }
+  if (!url.startsWith("http")) return "https://" + url;
   return url;
 }
 
-function go() {
-  const raw = document.getElementById("url").value.trim();
-  const view = document.getElementById("view");
-
-  if (!raw) {
-    view.innerHTML = `<div class="error">No URL provided</div>`;
+function tryNext(target) {
+  if (current >= proxies.length) {
+    document.getElementById("status").textContent = "All proxies failed";
     return;
   }
 
-  const target = normalize(raw);
-  const proxiedURL = PROXY_BASE + target;
+  const proxy = proxies[current++];
+  document.getElementById("status").textContent =
+    `Trying proxy ${current}/${proxies.length}: ${proxy}`;
 
   const iframe = document.createElement("iframe");
-
-  // Restrictive sandbox to limit damage
   iframe.sandbox = "allow-forms allow-same-origin";
 
-  iframe.src = proxiedURL;
+  iframe.onerror = () => tryNext(target);
+  iframe.onload = () => {
+    document.getElementById("status").textContent =
+      `Loaded via ${proxy}`;
+  };
 
+  iframe.src = proxy + encodeURIComponent(target);
+
+  const view = document.getElementById("view");
   view.innerHTML = "";
   view.appendChild(iframe);
+}
+
+async function start() {
+  current = 0;
+  await loadProxies();
+
+  if (!proxies.length) {
+    document.getElementById("status").textContent =
+      "No usable HTTPS proxies found";
+    return;
+  }
+
+  const target = normalize(
+    document.getElementById("url").value.trim()
+  );
+
+  tryNext(target);
 }
 </script>
 
