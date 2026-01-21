@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Proxy Failover Client</title>
+<title>Smart Proxy Client</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -26,6 +26,7 @@ input {
   background: #1a1a1a;
   color: #fff;
   border: 1px solid #333;
+  border-radius: 4px;
 }
 
 button {
@@ -36,17 +37,17 @@ button {
   cursor: pointer;
 }
 
+.status {
+  padding: 8px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
 iframe {
   width: 100%;
   height: calc(100vh - 56px);
   border: none;
   background: white;
-}
-
-.status {
-  padding: 8px;
-  font-size: 13px;
-  color: #9ca3af;
 }
 </style>
 </head>
@@ -63,15 +64,15 @@ iframe {
 <script>
 let proxies = [];
 let current = 0;
+let targetURL = "";
 
 async function loadProxies() {
   const res = await fetch("all-proxies.txt");
   const text = await res.text();
-
   proxies = text
     .split("\n")
     .map(p => p.trim())
-    .filter(p => p.startsWith("https://"));
+    .filter(p => p.startsWith("https://")); // only HTTPS proxies
 }
 
 function normalize(url) {
@@ -79,47 +80,70 @@ function normalize(url) {
   return url;
 }
 
-function tryNext(target) {
+// Try a proxy and check if iframe renders something
+function tryNextProxy() {
   if (current >= proxies.length) {
     document.getElementById("status").textContent = "All proxies failed";
     return;
   }
 
   const proxy = proxies[current++];
-  document.getElementById("status").textContent =
-    `Trying proxy ${current}/${proxies.length}: ${proxy}`;
+  const status = document.getElementById("status");
+  status.textContent = `Trying proxy ${current}/${proxies.length}: ${proxy}`;
 
   const iframe = document.createElement("iframe");
   iframe.sandbox = "allow-forms allow-same-origin";
 
-  iframe.onerror = () => tryNext(target);
-  iframe.onload = () => {
-    document.getElementById("status").textContent =
-      `Loaded via ${proxy}`;
-  };
-
-  iframe.src = proxy + encodeURIComponent(target);
-
+  // Clear previous iframe
   const view = document.getElementById("view");
   view.innerHTML = "";
   view.appendChild(iframe);
+
+  // Start timer to detect blank page
+  let timeout = setTimeout(() => {
+    status.textContent = `Proxy failed or blank: ${proxy}, trying next...`;
+    tryNextProxy();
+  }, 5000); // 5s timeout for rendering
+
+  iframe.onload = () => {
+    clearTimeout(timeout);
+
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      // Detect if content exists
+      if (doc.body && doc.body.innerHTML.trim().length > 0) {
+        status.textContent = `Loaded via proxy: ${proxy}`;
+      } else {
+        status.textContent = `Proxy returned blank page: ${proxy}, trying next...`;
+        tryNextProxy();
+      }
+    } catch (e) {
+      // Cross-origin or other load errors
+      status.textContent = `Proxy blocked content or error: ${proxy}, trying next...`;
+      tryNextProxy();
+    }
+  };
+
+  iframe.src = proxy + encodeURIComponent(targetURL);
 }
 
 async function start() {
   current = 0;
-  await loadProxies();
+  targetURL = normalize(document.getElementById("url").value.trim());
 
-  if (!proxies.length) {
-    document.getElementById("status").textContent =
-      "No usable HTTPS proxies found";
+  if (!targetURL) {
+    document.getElementById("status").textContent = "No URL provided";
     return;
   }
 
-  const target = normalize(
-    document.getElementById("url").value.trim()
-  );
+  await loadProxies();
 
-  tryNext(target);
+  if (!proxies.length) {
+    document.getElementById("status").textContent = "No usable HTTPS proxies found";
+    return;
+  }
+
+  tryNextProxy();
 }
 </script>
 
