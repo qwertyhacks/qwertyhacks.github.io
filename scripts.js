@@ -103,4 +103,22 @@
     }catch(e){ log('Fullscreen error: ' + e); }
   });
 
+  // draggable resize handle
+  const resizeHandle = document.getElementById('resizeHandle');
+  const workspace = document.querySelector('.workspace');
+  const console_ = document.querySelector('.console');
+  let isResizing = false;
+
+  resizeHandle.addEventListener('mousedown', ()=>{ isResizing = true; });
+  document.addEventListener('mouseup', ()=>{ isResizing = false; });
+  document.addEventListener('mousemove', (e)=>{
+    if(!isResizing) return;
+    const rect = workspace.getBoundingClientRect();
+    const newWidth = e.clientX - rect.left;
+    if(newWidth > 200 && rect.right - e.clientX > 200){
+      frameContainer.style.flex = `0 0 ${newWidth}px`;
+      console_.style.width = (rect.width - newWidth - 6) + 'px';
+    }
+  });
+
 })();
