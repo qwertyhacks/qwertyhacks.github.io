@@ -1,0 +1,29 @@
+:root{--bg:#0e0f14;--panel:#111218;--accent:#ffcc33;--accent2:#7afcff;--muted:#9aa0a6}
+*{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071017, #0b0b12);color:#e6eef6}
+header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:18px}
+#hud{display:flex;gap:10px;align-items:center}
+.stat{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:6px;font-size:14px}
+input[type=number]{width:80px}
+button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;color:#111;font-weight:700}
+button:disabled{opacity:.5}
+#gridContainer{padding:18px}
+#grid{display:grid;gap:6px;max-width:520px;margin:10px auto}
+.tile{width:48px;height:48px;background:linear-gradient(180deg,#15161a,#0f1114);border-radius:6px;display:flex;align-items:center;justify-content:center;color:transparent;font-weight:700;cursor:pointer;user-select:none;transition:transform .12s,box-shadow .12s}
+.tile.revealed{background:#1b1f24;color:#fff;transform:translateY(1px);cursor:default}
+.tile.bomb{background:linear-gradient(90deg,#ff3b3b,#a50000);color:#fff}
+.tile.safe-0{color:#9aa0a6}
+.small{font-size:12px}
+#abilities{display:flex;gap:8px;margin-bottom:12px}
+.ability{background:var(--accent2);color:#002;padding:6px 10px;border-radius:8px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
+.modal.hidden{display:none}
+.modal-inner{background:var(--panel);padding:18px;border-radius:10px;width:320px}
+.shop-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+#fx{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.info{font-size:12px;color:var(--muted)}
+
+/* responsive grid */
+@media(min-width:760px){#grid{grid-template-columns:repeat(10,48px)}}
+@media(max-width:759px){#grid{grid-template-columns:repeat(7,40px)}.tile{width:40px;height:40px}}

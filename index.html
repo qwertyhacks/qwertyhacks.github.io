@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Balatro Mines•Rogue — Mini</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Balatro Mines•Rogue</h1>
+    <div id="hud">
+      <div class="stat">Balance: <span id="balance">0</span></div>
+      <div class="stat">Bet: <input id="bet" type="number" value="1" min="1" /></div>
+      <div class="stat">Potential: <span id="potential">1.00x</span></div>
+      <button id="startBtn">Start Run</button>
+      <button id="cashoutBtn" disabled>Cash Out</button>
+      <button id="shopBtn">Shop</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="controls">
+      <div id="abilities">
+        <button class="ability" id="scanBtn">Scan</button>
+        <button class="ability" id="scryBtn">Scry</button>
+        <button class="ability" id="defuseBtn">Defuse</button>
+      </div>
+      <div id="gridContainer">
+        <div id="grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <canvas id="fx"></canvas>
+
+  <div id="shopModal" class="modal hidden">
+    <div class="modal-inner">
+      <h2>Shop</h2>
+      <div class="shop-item">
+        <div class="label">Multiplier +5%</div>
+        <div class="price">Cost: <span class="price-val">50</span></div>
+        <button class="buy" data-key="multi">Buy</button>
+      </div>
+      <div class="shop-item">
+        <div class="label">Extra Defuse Charge</div>
+        <div class="price">Cost: <span class="price-val">100</span></div>
+        <button class="buy" data-key="defuse">Buy</button>
+      </div>
+      <div class="shop-item">
+        <div class="label">Better Scan (wider)</div>
+        <div class="price">Cost: <span class="price-val">75</span></div>
+        <button class="buy" data-key="scan">Buy</button>
+      </div>
+      <button id="closeShop">Close</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
