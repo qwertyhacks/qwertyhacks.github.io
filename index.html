@@ -3,23 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Carlin's collection</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>X-inject0r</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <canvas id="bg-canvas"></canvas>
-  <div class="app">
-    <header>
-      <h1>Carlin's collection</h1>
-      <input id="search" placeholder="Search games..." />
-    </header>
+  <header>
+    <h1>X-inject0r</h1>
+    <p>Load a page and run JS commands like a console (same-origin only).</p>
+  </header>
 
-    <main>
-      <div id="grid" class="grid"></div>
-    </main>
+  <section class="loader">
+    <label>Site URL: <input id="urlInput" placeholder="https://example.com" /></label>
+    <button id="loadBtn">Load</button>
+    <select id="presetSelect">
+      <option value="">— Presets —</option>
+      <option value="blooket">Blooket (prefill game code)</option>
+    </select>
+    <div id="presetArea" class="hidden">
+      <label>Game code: <input id="gameCode" maxlength="6" placeholder="Enter game code" /></label>
+      <button id="applyBlooket">Apply preset</button>
+      <button id="bookmarkletBtn">Generate bookmarklet</button>
+    </div>
+  </section>
 
-    <footer>Drop a game folder into <a href="games/">/games/</a> and run the generator tool.</footer>
-  </div>
+  <section class="workspace">
+    <div class="frame-container">
+      <div class="frame-controls">
+        <button id="fullscreenBtn" title="Toggle fullscreen">⛶ Fullscreen</button>
+      </div>
+      <iframe id="targetFrame" title="target" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+
+    <aside class="console">
+      <div class="console-output" id="output"></div>
+      <textarea id="commandInput" placeholder="Type JS here and press Run" rows="4"></textarea>
+      <div class="controls">
+        <button id="runBtn">Run</button>
+        <button id="clearBtn">Clear</button>
+        <button id="copyBookmarklet" class="hidden">Copy Bookmarklet</button>
+      </div>
+    </aside>
+  </section>
+
+  <footer>
+    <small>Note: Injecting code into cross-origin sites is blocked by browsers. See README for bookmarklet workaround.</small>
+  </footer>
 
   <script src="scripts.js"></script>
 </body>
