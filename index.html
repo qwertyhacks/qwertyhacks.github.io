@@ -31,9 +31,9 @@
       <div class="frame-controls">
         <button id="fullscreenBtn" title="Toggle fullscreen">⛶ Fullscreen</button>
       </div>
-      <iframe id="targetFrame" title="target" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+      <iframe id="targetFrame" title="target" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-presentation"></iframe>
     </div>
-
+    <div class="resize-handle" id="resizeHandle"></div>
     <aside class="console">
       <div class="console-output" id="output"></div>
       <textarea id="commandInput" placeholder="Type JS here and press Run" rows="4"></textarea>
