@@ -1,0 +1,16 @@
+[
+    {
+        "name": "Sample Project",
+        "description": "This is a sample project to show how the library works. Replace this with your own projects!",
+        "icon": "🚀",
+        "path": "projects/sample.html",
+        "tags": ["demo", "example"]
+    },
+    {
+        "name": "About Page",
+        "description": "Learn more about this project library and how to use it.",
+        "icon": "ℹ️",
+        "path": "projects/about.html",
+        "tags": ["info"]
+    }
+]
