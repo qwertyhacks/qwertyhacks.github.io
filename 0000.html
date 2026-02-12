@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Python Web Terminal</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <style>
+    body {
+      background: #000;
+      color: #00ff00;
+      font-family: monospace;
+      margin: 0;
+      padding: 10px;
+    }
+    #terminal {
+      white-space: pre-wrap;
+      margin-bottom: 5px;
+    }
+    #input {
+      width: 100%;
+      background: black;
+      color: #00ff00;
+      border: none;
+      outline: none;
+      font-family: monospace;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="terminal">Loading Python runtime...</div>
+<input id="input" autocomplete="off" autofocus />
+
+<script>
+let pyodide;
+let terminal = document.getElementById("terminal");
+let input = document.getElementById("input");
+
+async function init() {
+  pyodide = await loadPyodide();
+  terminal.textContent = "Python " + pyodide.runPython("import sys; sys.version") + "\n\n>>> ";
+}
+
+function append(text) {
+  terminal.textContent += text;
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+input.addEventListener("keydown", async function(e) {
+  if (e.key === "Enter") {
+    let code = input.value;
+    append(code + "\n");
+    input.value = "";
+
+    try {
+      let result = pyodide.runPython(code);
+      if (result !== undefined) {
+        append(String(result) + "\n");
+      }
+    } catch (err) {
+      append(err + "\n");
+    }
+
+    append(">>> ");
+  }
+});
+
+init();
+</script>
+
+</body>
+</html>
