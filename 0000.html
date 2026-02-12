@@ -12,10 +12,51 @@
       margin: 0;
       padding: 10px;
     }
+
+    #topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    #menuButton {
+      background: #111;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    #menu {
+      position: absolute;
+      top: 35px;
+      left: 10px;
+      background: #111;
+      border: 1px solid #00ff00;
+      display: none;
+      flex-direction: column;
+      min-width: 150px;
+    }
+
+    #menu button {
+      background: none;
+      color: #00ff00;
+      border: none;
+      padding: 6px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    #menu button:hover {
+      background: #003300;
+    }
+
     #terminal {
       white-space: pre-wrap;
       margin-bottom: 5px;
     }
+
     #input {
       width: 100%;
       background: black;
@@ -25,45 +66,114 @@
       font-family: monospace;
       font-size: 14px;
     }
+
+    #fileInput {
+      display: none;
+    }
   </style>
 </head>
 <body>
 
+<div id="topbar">
+  <button id="menuButton">Menu ▾</button>
+</div>
+
+<div id="menu">
+  <button id="uploadBtn">Upload Python File</button>
+  <button id="clearBtn">Clear Terminal</button>
+</div>
+
 <div id="terminal">Loading Python runtime...</div>
 <input id="input" autocomplete="off" autofocus />
+<input type="file" id="fileInput" accept=".py" />
 
 <script>
 let pyodide;
 let terminal = document.getElementById("terminal");
 let input = document.getElementById("input");
+let menu = document.getElementById("menu");
 
 async function init() {
   pyodide = await loadPyodide();
+
+  // Redirect Python stdout to terminal
+  pyodide.runPython(`
+import sys
+from js import append_output
+
+class Writer:
+    def write(self, text):
+        append_output(text)
+    def flush(self):
+        pass
+
+sys.stdout = Writer()
+sys.stderr = Writer()
+`);
+
   terminal.textContent = "Python " + pyodide.runPython("import sys; sys.version") + "\n\n>>> ";
 }
 
-function append(text) {
+function append_output(text) {
   terminal.textContent += text;
   window.scrollTo(0, document.body.scrollHeight);
+}
+
+function appendPrompt() {
+  terminal.textContent += ">>> ";
 }
 
 input.addEventListener("keydown", async function(e) {
   if (e.key === "Enter") {
     let code = input.value;
-    append(code + "\n");
+    terminal.textContent += code + "\n";
     input.value = "";
 
     try {
       let result = pyodide.runPython(code);
       if (result !== undefined) {
-        append(String(result) + "\n");
+        append_output(String(result) + "\n");
       }
     } catch (err) {
-      append(err + "\n");
+      append_output(err + "\n");
     }
 
-    append(">>> ");
+    appendPrompt();
   }
+});
+
+// Menu toggle
+document.getElementById("menuButton").onclick = () => {
+  menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+};
+
+// Clear terminal
+document.getElementById("clearBtn").onclick = () => {
+  terminal.textContent = "";
+  appendPrompt();
+  menu.style.display = "none";
+};
+
+// Upload and run Python file
+document.getElementById("uploadBtn").onclick = () => {
+  document.getElementById("fileInput").click();
+  menu.style.display = "none";
+};
+
+document.getElementById("fileInput").addEventListener("change", async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const text = await file.text();
+  terminal.textContent += "\n# Running file: " + file.name + "\n";
+
+  try {
+    pyodide.runPython(text);
+  } catch (err) {
+    append_output(err + "\n");
+  }
+
+  appendPrompt();
 });
 
 init();
