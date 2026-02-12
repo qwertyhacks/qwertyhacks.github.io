@@ -1,238 +1,610 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Python Web Terminal</title>
+<meta charset="utf-8" />
+<title>Enhanced Python Web Terminal (100-feature plan)</title>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
 <style>
-body {
-  background:#111;
-  margin:0;
-  overflow:hidden;
-  font-family:monospace;
-}
-
-#window {
-  position:absolute;
-  top:60px;
-  left:60px;
-  width:800px;
-  height:500px;
-  background:black;
-  border:1px solid #0f0;
-  display:flex;
-  flex-direction:column;
-}
-
-#titlebar {
-  background:#111;
-  padding:6px;
-  cursor:move;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  border-bottom:1px solid #0f0;
-  color:#0f0;
-}
-
-#menuButton {
-  cursor:pointer;
-  padding:2px 6px;
-  border:1px solid #0f0;
-}
-
-#menu {
-  position:absolute;
-  top:35px;
-  right:10px;
-  background:#000;
-  border:1px solid #0f0;
-  display:none;
-  flex-direction:column;
-  z-index:9999;
-  min-width:180px;
-}
-
-#menu button {
-  background:none;
-  border:none;
-  color:#0f0;
-  padding:6px;
-  text-align:left;
-  cursor:pointer;
-}
-
-#menu button:hover {
-  background:#003300;
-}
-
-#terminal {
-  flex:1;
-  padding:10px;
-  overflow-y:auto;
-  white-space:pre-wrap;
-  color:#0f0;
-}
-
-#input {
-  border:none;
-  outline:none;
-  padding:8px;
-  background:black;
-  color:#0f0;
-  font-family:monospace;
-  font-size:14px;
-  width:100%;
-}
-
-.hidden { display:none; }
+  :root{
+    --bg:#000; --fg:#0f0; --panel-bg:#111; --accent:#0f0;
+  }
+  html,body{height:100%; margin:0; font-family:monospace; background:var(--bg); color:var(--fg); overflow:hidden}
+  /* Window */
+  #window{position:absolute; left:40px; top:40px; width:960px; height:640px; background:var(--panel-bg); border:2px solid var(--accent); box-sizing:border-box; display:flex; flex-direction:column; resize:both; overflow:hidden}
+  #titlebar{display:flex; justify-content:space-between; align-items:center; padding:6px 10px; cursor:move; background:transparent; color:var(--fg); border-bottom:1px solid rgba(255,255,255,0.03)}
+  #left-title{display:flex; gap:10px; align-items:center}
+  .btn{background:transparent; border:1px solid var(--accent); color:var(--fg); padding:4px 8px; cursor:pointer}
+  #menu{position:absolute; top:42px; right:46px; display:none; flex-direction:column; gap:4px; background:var(--panel-bg); border:1px solid var(--accent); z-index:1000; min-width:220px; padding:6px}
+  #menu button{background:transparent; border:none; color:var(--fg); text-align:left; padding:6px; cursor:pointer}
+  #topbar-right{display:flex; gap:6px; align-items:center}
+  /* Tabs */
+  #tabs{display:flex; gap:4px; padding:6px; background:rgba(255,255,255,0.01); border-bottom:1px dashed rgba(255,255,255,0.02); overflow:auto}
+  .tab{padding:6px 8px; cursor:pointer; border:1px solid transparent}
+  .tab.active{border-color:var(--accent); background:rgba(255,255,255,0.02)}
+  /* Main area */
+  #main{flex:1; display:flex; min-height:0}
+  #side{width:260px; border-right:1px solid rgba(255,255,255,0.03); padding:8px; box-sizing:border-box; overflow:auto; background:rgba(0,0,0,0.05)}
+  #side h3{margin:6px 0}
+  #file-list{font-size:13px; white-space:pre-wrap}
+  #editorPanel{display:none; flex-direction:column; padding:8px; box-sizing:border-box; height:100%}
+  #editor{width:100%; height:100%; box-sizing:border-box; font-family:monospace; font-size:13px; padding:8px; background:#0c0c0c; color:var(--fg); border:1px solid rgba(255,255,255,0.02)}
+  #editorHeader{display:flex; gap:6px; align-items:center; margin-bottom:6px}
+  #terminalWrap{flex:1; display:flex; flex-direction:column; min-width:0}
+  #terminal{flex:1; padding:12px; overflow:auto; white-space:pre-wrap; font-size:13px; background:var(--bg); color:var(--fg)}
+  #controls{display:flex; gap:6px; padding:8px; border-top:1px solid rgba(255,255,255,0.02); align-items:center}
+  #input{flex:1; background:#000; color:var(--fg); border:1px solid rgba(255,255,255,0.03); padding:8px; font-family:monospace; font-size:13px}
+  #fileInput{display:none}
+  /* small helpers */
+  .small{font-size:12px; color:rgba(255,255,255,0.6)}
+  #toast{position:fixed; right:20px; bottom:20px; background:#222; color:#fff; padding:10px 14px; border-radius:6px; display:none; z-index:2000}
+  #searchBox{display:flex; gap:6px; margin-bottom:6px}
+  #searchBox input{flex:1; padding:6px}
+  /* context menu */
+  #ctx{position:fixed; display:none; z-index:3000; background:#111; border:1px solid var(--accent)}
+  #ctx button{display:block; width:100%; padding:8px; color:var(--fg); background:transparent; border:none; text-align:left}
+  /* accessibility */
+  #kbdShortcuts{font-size:12px; color:rgba(255,255,255,0.55); margin-top:8px}
 </style>
 </head>
 <body>
 
-<div id="window">
+<div id="window" role="application" aria-label="Python web terminal">
   <div id="titlebar">
-    <div>Python Web Terminal</div>
-    <div id="menuButton">Menu ▾</div>
+    <div id="left-title">
+      <strong>Python Web Terminal</strong>
+      <span class="small">(Pyodide)</span>
+      <div id="tabs" aria-label="session tabs"></div>
+    </div>
+
+    <div id="topbar-right">
+      <button id="menuButton" class="btn">Menu ▾</button>
+      <div class="small" id="status">Loading...</div>
+    </div>
   </div>
 
-  <div id="menu">
+  <div id="menu" role="menu">
     <button id="uploadBtn">Upload Python File</button>
-    <button id="saveBtn">Save File (save name.py)</button>
-    <button id="downloadBtn">Download File</button>
+    <button id="newTabBtn">New Session Tab</button>
+    <button id="saveSessionBtn">Save Session</button>
+    <button id="loadSessionBtn">Load Session</button>
+    <button id="exportBtn">Export Session (JSON)</button>
+    <button id="importBtn">Import Session</button>
     <button id="clearBtn">Clear Terminal</button>
-    <button id="themeBtn">Toggle Theme</button>
+    <button id="toggleEditorBtn">Toggle Editor</button>
+    <button id="toggleSideBtn">Toggle File Panel</button>
+    <button id="themeBtn">Cycle Theme</button>
+    <button id="helpBtn">Show Help</button>
   </div>
 
-  <div id="terminal">Loading Python runtime...</div>
-  <input id="input" autocomplete="off" autofocus />
+  <div id="main">
+    <div id="side" aria-hidden="false">
+      <h3>Files</h3>
+      <div id="file-list" class="small">(fs empty)</div>
+      <div style="margin-top:8px">
+        <button id="refreshFs" class="btn small">Refresh</button>
+        <button id="createFileBtn" class="btn small">New File</button>
+        <button id="clearFsBtn" class="btn small">Clear FS</button>
+      </div>
+
+      <h3>Quick Commands</h3>
+      <div id="quickCmds" class="small">
+        <button class="btn small" data-cmd="ls">ls</button>
+        <button class="btn small" data-cmd="pwd">pwd</button>
+        <button class="btn small" data-cmd="history">history</button>
+        <button class="btn small" data-cmd="pip install numpy">pip install numpy</button>
+      </div>
+
+      <div id="searchBox">
+        <input id="fileSearch" placeholder="search files..." />
+        <button id="findFiles" class="btn small">Find</button>
+      </div>
+
+      <div id="kbdShortcuts">Shortcuts: Enter=run · Shift+Enter=nl · Up/Down=history · Ctrl+P=cmd palette · Ctrl+F=find</div>
+    </div>
+
+    <div id="editorPanel">
+      <div id="editorHeader">
+        <input id="editorName" placeholder="filename.py" />
+        <button id="saveEditor" class="btn small">Save</button>
+        <button id="runEditor" class="btn small">Run</button>
+        <button id="downloadEditor" class="btn small">Download</button>
+        <button id="closeEditor" class="btn small">Close</button>
+      </div>
+      <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+
+    <div id="terminalWrap">
+      <div id="terminal" role="log" aria-live="polite">Initializing Python runtime... (this may take a moment)</div>
+      <div id="controls">
+        <input id="input" placeholder="Type Python or commands. Shift+Enter = newline. Ctrl+P: command palette" autocomplete="off" />
+        <button id="runBtn" class="btn">Run</button>
+        <button id="interruptBtn" class="btn">Interrupt</button>
+        <button id="copyBtn" class="btn">Copy</button>
+        <button id="pasteBtn" class="btn">Paste</button>
+        <input type="file" id="fileInput" accept=".py" style="display:none" />
+      </div>
+    </div>
+  </div>
 </div>
 
-<input type="file" id="fileInput" class="hidden" accept=".py"/>
+<div id="ctx" role="menu">
+  <button id="ctxCopy">Copy</button>
+  <button id="ctxPaste">Paste</button>
+  <button id="ctxRunSelection">Run selection</button>
+</div>
+
+<div id="toast"></div>
 
 <script>
-let pyodide;
-let term = document.getElementById("terminal");
-let input = document.getElementById("input");
-let menu = document.getElementById("menu");
-let themeState = 0;
+/* =========== Utilities & state =========== */
+const term = document.getElementById('terminal');
+const input = document.getElementById('input');
+const status = document.getElementById('status');
+const menu = document.getElementById('menu');
+const menuButton = document.getElementById('menuButton');
+const fileInput = document.getElementById('fileInput');
+const fileListEl = document.getElementById('file-list');
+const editorPanel = document.getElementById('editorPanel');
+const editor = document.getElementById('editor');
+const editorName = document.getElementById('editorName');
+const tabsEl = document.getElementById('tabs');
+const toastEl = document.getElementById('toast');
+const ctx = document.getElementById('ctx');
 
-async function init(){
-  pyodide = await loadPyodide();
+let pyodide = null;
+let consoleObj = null;
+let sessions = []; // each session: {id, name, history[], terminalText, fsSnapshot, prompt}
+let activeSession = null;
+let cmdHistory = [];
+let historyIndex = -1;
+let autocompleteList = [];
+let runningPromise = null;
+let spinnerInterval = null;
+let autosave = true;
+let autosaveKey = 'pyweb_autosave_v1';
 
+/* convenience append */
+function append(text){ term.textContent += text; term.scrollTop = term.scrollHeight; }
+function toast(msg, time=2500){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none', time); }
+
+/* =========== Pyodide init =========== */
+async function initPyodide(){
+  pyodide = await loadPyodide({indexURL:"https://cdn.jsdelivr.net/pyodide/v0.26.2/full/"});
+  status.textContent = 'Pyodide loaded';
+  // expose write_output and helpers
   await pyodide.runPythonAsync(`
-import sys, code, os
-from js import write_output
+import sys,code,os
+from js import write_output_js
 
 class Writer:
-    def write(self, s): write_output(s)
-    def flush(self): pass
+    def write(self,s):
+        try:
+            write_output_js(s)
+        except:
+            pass
+    def flush(self):
+        pass
 
 sys.stdout = Writer()
 sys.stderr = Writer()
-
-console = code.InteractiveConsole()
+console = code.InteractiveConsole(locals={})
 `);
-
-  write_output("Python ready.\n>>> ");
+  // bind JS function
+  window.write_output_js = function(s){ append(s); };
+  consoleObj = pyodide.runPython('console');
+  status.textContent = 'Python ready';
+  append('\\n>>> ');
+  refreshFS();
+  loadOrCreateSession();
+  populateAutocomplete();
 }
 
-function write_output(text){
-  term.textContent += text;
-  term.scrollTop = term.scrollHeight;
+/* =========== Session & Tabs =========== */
+function saveSessionToLocal(){
+  if(!activeSession) return;
+  activeSession.terminalText = term.textContent;
+  activeSession.history = cmdHistory.slice();
+  activeSession.fsSnapshot = listFS();
+  localStorage.setItem(autosaveKey, JSON.stringify(sessions));
+  toast('Session saved');
 }
-
-async function runCommand(cmd){
-  term.textContent += cmd + "\n";
-  await pyodide.runPythonAsync(`
-console.push("""${cmd.replace(/\\/g,"\\\\").replace(/`/g,"\\`")}""")
-`);
-}
-
-input.addEventListener("keydown", async e=>{
-  if(e.key==="Enter"){
-    let cmd=input.value;
-    input.value="";
-    await runCommand(cmd);
+function loadOrCreateSession(){
+  let raw = localStorage.getItem(autosaveKey);
+  if(raw){
+    try{ sessions = JSON.parse(raw); } catch(e){ sessions = []; }
   }
-});
+  if(sessions.length===0){
+    createSession('session-1');
+  } else {
+    sessions.forEach(s=>createTabFromSession(s));
+    setActiveSession(sessions[0].id);
+    restoreSession(sessions[0]);
+  }
+}
+function createSession(name){
+  const id = 's-'+Date.now();
+  const s = {id,name,history:[],terminalText:'',fsSnapshot:[],prompt:'>>> '};
+  sessions.push(s);
+  createTabFromSession(s);
+  setActiveSession(id);
+  saveAllSessionsToStorage();
+  return s;
+}
+function createTabFromSession(s){
+  const el = document.createElement('div');
+  el.className='tab';
+  el.textContent = s.name;
+  el.dataset.id = s.id;
+  el.onclick = ()=>setActiveSession(s.id);
+  tabsEl.appendChild(el);
+}
+function setActiveSession(id){
+  activeSession = sessions.find(x=>x.id===id);
+  if(!activeSession) return;
+  Array.from(tabsEl.children).forEach(t=>t.classList.toggle('active', t.dataset.id===id));
+  restoreSession(activeSession);
+}
+function restoreSession(s){
+  term.textContent = s.terminalText || '';
+  cmdHistory = s.history || [];
+  historyIndex = cmdHistory.length;
+  refreshFS();
+}
+function saveAllSessionsToStorage(){ localStorage.setItem(autosaveKey, JSON.stringify(sessions)); }
 
-document.getElementById("menuButton").onclick=()=>{
-  menu.style.display = menu.style.display==="flex"?"none":"flex";
-};
-
-document.getElementById("clearBtn").onclick=()=>{
-  term.textContent="";
-  write_output(">>> ");
-  menu.style.display="none";
-};
-
-document.getElementById("uploadBtn").onclick=()=>{
-  document.getElementById("fileInput").click();
-  menu.style.display="none";
-};
-
-document.getElementById("fileInput").addEventListener("change", async e=>{
-  let file=e.target.files[0];
-  if(!file)return;
-  let text=await file.text();
-  write_output("\n# Running "+file.name+"\n");
-  await pyodide.runPythonAsync(text);
-  write_output("\n>>> ");
-});
-
-document.getElementById("saveBtn").onclick=()=>{
-  write_output("\nUse: save filename.py\n>>> ");
-  menu.style.display="none";
-};
-
-document.getElementById("downloadBtn").onclick=()=>{
-  let name=prompt("Enter filename to download:");
-  if(!name)return;
+/* =========== Filesystem helpers =========== */
+function listFS(){
   try{
-    let data=pyodide.FS.readFile(name,{encoding:"utf8"});
-    let blob=new Blob([data],{type:"text/plain"});
-    let a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=name;
-    a.click();
-  }catch{
-    alert("File not found.");
+    const files = pyodide.runPython('import os; [os.path.join(root,f) for root,dirs,files in os.walk(\"/\") for f in files]');
+    return files.toJs ? files.toJs() : files;
+  } catch(e){ return []; }
+}
+function refreshFS(){
+  const files = listFS();
+  if(files.length===0){ fileListEl.textContent='(fs empty)'; return; }
+  fileListEl.textContent = files.join('\\n');
+}
+async function writeFile(name, content){
+  await pyodide.FS.writeFile(name, content, {encoding:'utf8'});
+  refreshFS();
+}
+async function readFile(name){
+  try{ return pyodide.FS.readFile(name,{encoding:'utf8'}); } catch(e){ throw new Error('file not found'); }
+}
+async function removeFile(name){
+  try{ pyodide.FS.unlink(name); refreshFS(); } catch(e){ throw new Error('rm failed'); }
+}
+
+/* =========== Command handling and REPL integration =========== */
+async function runPythonCode(code){
+  // show spinner
+  startSpinner();
+  try{
+    // run asynchronously to allow large ops
+    runningPromise = pyodide.runPythonAsync(code);
+    const result = await runningPromise;
+    if(result !== undefined){
+      try{ append(String(result)+'\\n'); } catch(e){}
+    }
+  } catch (err){
+    append(String(err)+'\\n');
+  } finally {
+    stopSpinner();
+    runningPromise = null;
+    append('>>> ');
   }
-  menu.style.display="none";
+}
+function handleSpecialCmd(cmd){
+  // simple shell-like commands implemented in JS
+  const parts = cmd.trim().split(' ');
+  const c = parts[0];
+  if(c==='ls'){ refreshFS(); return true; }
+  if(c==='pwd'){ append('/\\n'); return true; }
+  if(c==='history'){ append(cmdHistory.join('\\n')+'\\n'); return true; }
+  if(c==='clear' || c==='cls'){ term.textContent=''; append('>>> '); return true; }
+  if(c==='save'){ // save to FS: save filename content from last command? provide pattern: save name.py
+    if(parts[1]){ // create empty file if not exists
+      writeFile(parts[1],'');
+      append('saved '+parts[1]+'\\n');
+    } else append('usage: save filename.py\\n');
+    return true;
+  }
+  if(c==='cat'){ if(parts[1]){ readFile(parts[1]).then(t=>append(t+'\\n')).catch(e=>append('error: '+e+'\\n')); } else append('usage: cat filename\\n'); return true;}
+  if(c==='rm'){ if(parts[1]){ try{ removeFile(parts[1]); append('removed '+parts[1]+'\\n'); } catch(e){ append('error\\n'); }} else append('usage: rm filename\\n'); return true;}
+  if(c==='mkdir'){ append('mkdir not needed in pyodide FS demo\\n'); return true; }
+  if(c==='pip' && parts[1]==='install'){ // pip install via micropip
+    const pkg = parts.slice(2).join(' ');
+    if(!pkg){ append('usage: pip install <package>\\n'); return true; }
+    append('Installing '+pkg+' (this may take a while)...\\n');
+    startSpinner();
+    try{
+      await pyodide.runPythonAsync(`import micropip; await micropip.install("${pkg}")`);
+      append('installed '+pkg+'\\n');
+    } catch(e){ append('install failed: '+e+'\\n'); }
+    stopSpinner();
+    return true;
+  }
+  return false;
+}
+
+/* =========== UI: history, input handling, autocomplete =========== */
+input.addEventListener('keydown', async (e)=>{
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    const cmd = input.value;
+    input.value='';
+    append(cmd+'\\n');
+    if(cmd.trim()==='') { append('>>> '); return; }
+    cmdHistory.push(cmd);
+    historyIndex = cmdHistory.length;
+    if(handleSpecialCmd(cmd)) return;
+    try{
+      // try run as expression first to capture result
+      await runPythonCode(cmd);
+    } catch(e){ append(String(e)+'\\n'); append('>>> '); }
+    if(autosave) saveSessionToLocal();
+    return;
+  }
+  if(e.key==='Enter' && e.shiftKey){
+    // allow newline
+    input.value += '\\n';
+    return;
+  }
+  if(e.key==='ArrowUp'){
+    if(cmdHistory.length>0){
+      historyIndex = Math.max(0, historyIndex-1);
+      input.value = cmdHistory[historyIndex] || '';
+    }
+  }
+  if(e.key==='ArrowDown'){
+    historyIndex = Math.min(cmdHistory.length, historyIndex+1);
+    input.value = cmdHistory[historyIndex] || '';
+  }
+  if(e.key==='Tab'){
+    e.preventDefault();
+    doAutocomplete();
+  }
+  if(e.ctrlKey && e.key.toLowerCase()==='p'){
+    e.preventDefault();
+    openCommandPalette();
+  }
+  if(e.ctrlKey && e.key.toLowerCase()==='f'){
+    e.preventDefault();
+    openFind();
+  }
+});
+
+/* simple autocomplete using globals and fs */
+async function populateAutocomplete(){
+  try{
+    const names = pyodide.runPython('list(globals().keys())');
+    const fs = listFS();
+    autocompleteList = (names.toJs ? names.toJs() : names).concat(fs);
+  } catch(e){}
+}
+function doAutocomplete(){
+  const val = input.value;
+  const parts = val.split(/\\s+/);
+  const last = parts[parts.length-1];
+  if(!last) return;
+  const candidates = autocompleteList.filter(x=>x.startsWith(last)).slice(0,10);
+  if(candidates.length===0) return;
+  // replace last token
+  parts[parts.length-1] = candidates[0];
+  input.value = parts.join(' ');
+}
+
+/* =========== File upload, editor, download =========== */
+document.getElementById('uploadBtn').onclick = ()=>fileInput.click();
+fileInput.addEventListener('change', async (evt)=>{
+  const f = evt.target.files[0];
+  if(!f) return;
+  const text = await f.text();
+  await writeFile('/'+f.name, text);
+  append('\\n# Uploaded and saved as /'+f.name+'\\n');
+  refreshFS();
+  if(autosave) saveSessionToLocal();
+});
+document.getElementById('createFileBtn').onclick = ()=>{
+  const name = prompt('Filename (e.g. script.py)');
+  if(!name) return;
+  writeFile('/'+name,'');
+  refreshFS();
+  toast('file created');
+};
+document.getElementById('refreshFs').onclick = refreshFS;
+document.getElementById('clearFsBtn').onclick = ()=>{
+  // remove all files (careful)
+  const files = listFS();
+  files.forEach(f=>{
+    try{ pyodide.FS.unlink(f); } catch(e){}
+  });
+  refreshFS();
+  toast('FS cleared');
 };
 
-document.getElementById("themeBtn").onclick=()=>{
-  themeState=(themeState+1)%3;
-  let colors=[["#0f0","black"],["#fff","#111"],["#ffb000","black"]];
-  term.style.color=colors[themeState][0];
-  input.style.color=colors[themeState][0];
-  document.getElementById("window").style.borderColor=colors[themeState][0];
-  document.getElementById("titlebar").style.borderBottomColor=colors[themeState][0];
-  document.getElementById("titlebar").style.color=colors[themeState][0];
-  menu.style.borderColor=colors[themeState][0];
-  menu.querySelectorAll("button").forEach(b=>b.style.color=colors[themeState][0]);
-  menu.style.display="none";
+/* editor */
+document.getElementById('toggleEditorBtn').onclick = ()=>{
+  editorPanel.style.display = editorPanel.style.display==='flex' ? 'none' : 'flex';
+};
+document.getElementById('saveEditor').onclick = async ()=>{
+  const name = editorName.value || prompt('filename');
+  if(!name){ toast('no filename'); return; }
+  await writeFile('/'+name, editor.value);
+  toast('saved '+name);
+  refreshFS();
+};
+document.getElementById('runEditor').onclick = async ()=>{
+  // write temp file and run
+  const name = editorName.value || 'temp_run.py';
+  await writeFile('/'+name, editor.value);
+  append('\\n# Running '+name+'\\n');
+  try{ await runPythonCode(pyodide.FS.readFile('/'+name,{encoding:'utf8'})); } catch(e){ append('error\\n'); }
+};
+document.getElementById('downloadEditor').onclick = async ()=>{
+  const name = editorName.value || 'script.py';
+  const content = editor.value;
+  const blob = new Blob([content], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
 };
 
-// draggable window
-let win=document.getElementById("window");
-let title=document.getElementById("titlebar");
-let offsetX,offsetY,isDown=false;
+/* =========== Tabs and session controls =========== */
+document.getElementById('newTabBtn').onclick = ()=>{
+  const s = createSession('s-'+(sessions.length+1));
+  createTabFromSession(s);
+  setActiveSession(s.id);
+};
+document.getElementById('saveSessionBtn').onclick = ()=>{ saveSessionToLocal(); saveAllSessionsToStorage(); };
+document.getElementById('loadSessionBtn').onclick = ()=>{
+  const raw = prompt('Paste session JSON to load:');
+  if(!raw) return;
+  try{
+    const obj = JSON.parse(raw);
+    sessions = obj;
+    tabsEl.innerHTML='';
+    sessions.forEach(s=>createTabFromSession(s));
+    setActiveSession(sessions[0].id);
+    saveAllSessionsToStorage();
+    toast('session loaded');
+  } catch(e){ toast('invalid JSON'); }
+};
+document.getElementById('exportBtn').onclick = ()=>{
+  const data = JSON.stringify(sessions, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pyweb_sessions.json';
+  a.click();
+};
+document.getElementById('importBtn').onclick = async ()=>{
+  const raw = prompt('Paste session JSON to import:');
+  if(!raw) return;
+  try{ const obj = JSON.parse(raw); sessions = sessions.concat(obj); obj.forEach(s=>createTabFromSession(s)); saveAllSessionsToStorage(); toast('imported'); } catch(e){ toast('invalid JSON'); }
+};
 
-title.addEventListener("mousedown",e=>{
-  isDown=true;
-  offsetX=e.clientX-win.offsetLeft;
-  offsetY=e.clientY-win.offsetTop;
+/* =========== Command palette & find =========== */
+function openCommandPalette(){
+  const cmd = prompt('Command palette: run a command (e.g., ls, clear, save, pip install pkg)');
+  if(!cmd) return;
+  input.value = cmd;
+  input.focus();
+}
+function openFind(){
+  const q = prompt('Find in terminal:');
+  if(!q) return;
+  const idx = term.textContent.indexOf(q);
+  if(idx>=0){
+    // highlight by selecting text? simpler: scroll to approximate location
+    const lines = term.textContent.substr(0,idx).split('\\n').length;
+    const el = term;
+    const approx = Math.max(0, lines-5) * 16;
+    el.scrollTop = approx;
+    toast('Found at line '+lines);
+  } else toast('not found');
+}
+
+/* =========== Misc features =========== */
+document.getElementById('clearBtn').onclick = ()=>{ term.textContent=''; append('>>> '); menu.style.display='none'; };
+document.getElementById('themeBtn').onclick = ()=>cycleTheme();
+document.getElementById('helpBtn').onclick = ()=>{ alert(helpText); };
+
+document.getElementById('runBtn').onclick = ()=>{ input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter'})); };
+document.getElementById('interruptBtn').onclick = ()=>interruptExecution();
+
+document.getElementById('copyBtn').onclick = ()=>navigator.clipboard.writeText(window.getSelection().toString() || term.textContent);
+document.getElementById('pasteBtn').onclick = async ()=>{ const t = await navigator.clipboard.readText(); input.value += t; };
+
+document.getElementById('findFiles').onclick = ()=>{
+  const q = document.getElementById('fileSearch').value;
+  if(!q) return;
+  const files = listFS();
+  const found = files.filter(f=>f.includes(q));
+  fileListEl.textContent = found.join('\\n') || '(none)';
+  toast(found.length + ' files found');
+};
+
+/* context menu */
+term.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  ctx.style.left = e.pageX+'px';
+  ctx.style.top = e.pageY+'px';
+  ctx.style.display = 'block';
 });
-document.addEventListener("mouseup",()=>isDown=false);
-document.addEventListener("mousemove",e=>{
-  if(!isDown)return;
-  win.style.left=(e.clientX-offsetX)+"px";
-  win.style.top=(e.clientY-offsetY)+"px";
+document.addEventListener('click', ()=>ctx.style.display='none');
+document.getElementById('ctxCopy').onclick = ()=>{ navigator.clipboard.writeText(window.getSelection().toString() || term.textContent); };
+document.getElementById('ctxPaste').onclick = async ()=>{ input.value += await navigator.clipboard.readText(); };
+document.getElementById('ctxRunSelection').onclick = ()=>{ const s = window.getSelection().toString(); if(s) runPythonCode(s); };
+
+/* draggable window */
+(function draggable(){
+  const win = document.getElementById('window'), title = document.getElementById('titlebar');
+  let down=false, ox=0, oy=0;
+  title.addEventListener('mousedown', e=>{ down=true; ox=e.clientX-win.offsetLeft; oy=e.clientY-win.offsetTop; });
+  document.addEventListener('mouseup', ()=>down=false);
+  document.addEventListener('mousemove', e=>{ if(!down) return; win.style.left=(e.clientX-ox)+'px'; win.style.top=(e.clientY-oy)+'px'; });
+})();
+
+/* spinner */
+function startSpinner(){ if(spinnerInterval) return; status.textContent='Running...'; spinnerInterval = setInterval(()=>{ status.textContent = status.textContent.endsWith('.') ? 'Running' : status.textContent + '.'; }, 400); }
+function stopSpinner(){ if(!spinnerInterval) return; clearInterval(spinnerInterval); spinnerInterval = null; status.textContent='Python ready'; }
+
+/* interrupt */
+function interruptExecution(){
+  if(runningPromise && runningPromise.cancel){
+    runningPromise.cancel(); append('\\n^C (cancelled)\\n'); stopSpinner();
+  } else {
+    append('\\n^C requested — long-running operations may not be interruptible in Pyodide.\\n');
+  }
+}
+
+/* theme cycling (3 themes) */
+let themeIndex=0;
+function cycleTheme(){
+  const themes = [
+    {bg:'#000', fg:'#0f0', panel:'#111', accent:'#0f0'},
+    {bg:'#0b0b0f', fg:'#fff', panel:'#101018', accent:'#7fffd4'},
+    {bg:'#070106', fg:'#ffb000', panel:'#0a0505', accent:'#ffb000'}
+  ];
+  themeIndex = (themeIndex+1)%themes.length;
+  const t = themes[themeIndex];
+  document.documentElement.style.setProperty('--bg', t.bg);
+  document.documentElement.style.setProperty('--fg', t.fg);
+  document.documentElement.style.setProperty('--panel-bg', t.panel);
+  document.documentElement.style.setProperty('--accent', t.accent);
+}
+
+/* help text */
+const helpText = `Help - Keyboard shortcuts and commands:
+Enter: run line
+Shift+Enter: newline
+Up/Down: history
+Tab: autocomplete
+Ctrl+P: command palette
+Ctrl+F: find in terminal
+Commands implemented: ls, pwd, history, clear, save <name>, cat <name>, rm <name>, pip install <pkg>
+Editor: toggle, edit file, save, run
+Files: upload, create, download, clear FS
+Sessions: new tab, save/load/export/import (localStorage)
+(See code for more features)
+`;
+
+/* =========== Initialization wrapper =========== */
+window.addEventListener('load', async ()=>{
+  append('Loading Pyodide runtime...\\n');
+  try{ await initPyodide(); }
+  catch(e){ append('Error initializing Pyodide: '+e+'\\n'); }
 });
 
-init();
+/* expose some functions for Python to call if needed */
+window.append_from_python = (s)=>append(s);
+window.saveSessionToLocal = saveSessionToLocal;
+
+/* autosave periodically */
+setInterval(()=>{ if(autosave) saveSessionToLocal(); }, 30000);
+
 </script>
 
 </body>
